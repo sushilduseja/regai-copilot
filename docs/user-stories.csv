@@ -1,0 +1,4 @@
+"ID","User Story","Acceptance Criteria"
+1,"As a regulatory analyst, I want to search regulations by obligation type so that I can quickly find relevant compliance requirements.","- Search results filterable by obligation type. - Results clearly display the obligation text. - Search response time is under 2 seconds."
+2,"As a compliance manager, I want every AI-generated claim to be cited to a specific regulation so I can verify its accuracy.","- All analytical statements in the output are linked to a source document. - Citations include document name, page, and section. - Clicking a citation reveals the exact source text."
+3,"As a tech lead, I want to receive new regulatory requirements via an API so I can integrate them into our internal task management system.","- A webhook is available for new obligations. - The payload contains structured data including the requirement, effective date, and source. - The API is secured via OAuth 2.0."

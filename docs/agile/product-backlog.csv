@@ -1,0 +1,10 @@
+## Agile Product Backlog
+
+This file contains a prioritized list of user stories for the RegAI Copilot.
+
+"ID","User Story","Theme","Priority","Estimate (Story Points)"
+1,"As an analyst, I want to perform a semantic search across all ingested regulations so I can find relevant text without knowing exact keywords.","Search & Retrieval","P0",5
+2,"As an analyst, I want to see the source document, page, and section for every piece of information returned by the AI.","Transparency & Audit","P0",3
+3,"As a manager, I want a dashboard showing the status of all new regulations and our team's assessment progress.","Reporting & Oversight","P1",8
+4,"As an analyst, I want to receive email alerts for new regulations published in my specific jurisdiction.","Notifications","P1",3
+5,"As a user, I want to export my analysis and citations to a PDF file for sharing with stakeholders.","Interoperability","P2",2

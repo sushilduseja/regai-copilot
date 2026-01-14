@@ -1,0 +1,103 @@
+openapi: 3.0.0
+info:
+  title: RegAI Copilot API
+  version: "1.0"
+  description: API for the RAG-Powered Regulatory Intelligence System.
+paths:
+  /api/v1/regulations/search:
+    post:
+      summary: Search Regulations
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                query:
+                  type: string
+                  example: "user question"
+                filters:
+                  type: object
+                max_results:
+                  type: integer
+                  example: 10
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: array
+                    items:
+                      type: object
+                  query_id:
+                    type: string
+  /api/v1/regulations/analyze:
+    post:
+      summary: Analyze Regulations
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                query:
+                  type: string
+                  example: "user question"
+                context_ids:
+                  type: array
+                  items:
+                    type: string
+                analysis_depth:
+                  type: string
+                  example: "standard"
+      responses:
+        '200':
+          description: Analysis result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  analysis:
+                    type: string
+                  citations:
+                    type: array
+                    items:
+                      type: object
+                  confidence:
+                    type: string
+  /api/v1/regulations/document/{document_id}:
+    get:
+      summary: Get Document Details
+      parameters:
+        - name: document_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Document metadata and text
+  /api/v1/regulations/compare:
+    post:
+      summary: Compare Two Documents
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                document_id_v1:
+                  type: string
+                document_id_v2:
+                  type: string
+      responses:
+        '200':
+          description: List of changes between documents
