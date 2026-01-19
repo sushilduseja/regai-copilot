@@ -1,4 +1,4 @@
-# RegAI Copilot
+# RegAI Copilot [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/sushilduseja/regai-copilot)
 ## RAG-Powered Regulatory Intelligence System for Capital Markets
 
 *This project demonstrates product management capabilities through comprehensive documentation and technical design. It represents the frameworks, artifacts, and strategic thinking I would apply when building an AI product for regulatory compliance operations.*
