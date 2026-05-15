@@ -85,24 +85,87 @@ regai-copilot/
 
 ## Slice 2: Admin Ingestion, FTS-Only
 
-- [ ] admin upload route (`POST /admin/regulations/upload`)
-- [ ] file storage (`data/uploads/originals/`, `extracted/`, `normalized/`)
-- [ ] SHA-256 hash dedup
-- [ ] admin metadata form (title, regulator, jurisdiction, document_type, dates, source_url)
-- [ ] ingestion job table + status page
-- [ ] TXT/MD extractor first (defer PDF)
-- [ ] normalized JSON output
-- [ ] hierarchical chunker (800-1200 target, 1500 max, section-aware, 0 overlap)
-- [ ] SQLite chunks + FTS5 index
-- [ ] source viewer (document detail page with section anchors)
-- [ ] graceful degradation: Pinecone fail → FTS-only banner
+### Design
+
+Admin uploads a TXT/MD regulation file through a `GET + POST` form. On POST:
+1. Require admin role.
+2. Validate extension/MIME/size (TXT/MD only, max 50MB).
+3. Stream to temp file, compute SHA-256.
+4. If duplicate hash exists: delete temp, redirect to existing regulation.
+5. Move to `data/uploads/originals/{hash}.{ext}`.
+6. Create `regulations` row with `index_status=ingesting`.
+7. Create `ingestion_jobs` row with `status=pending`.
+8. Enqueue job ID for single in-process worker.
+9. Redirect to `/admin/ingestion-jobs/{job_id}`.
+
+Single worker processes the queue (started at app startup):
+```
+pending → processing
+  extract TXT/MD → write extracted/{hash}.txt
+  normalize blocks → write normalized/{hash}.json
+  chunk (800-1200 target, 1500 max, section-aware, 0 overlap)
+  insert chunks + chunks_fts rows
+  regulation.index_status = indexed
+  job.status = indexed
+failure → job.status=failed, regulation.index_status=failed
+```
+
+All multi-write steps use `db.transaction()`. No partial ingestion state.
+
+### Routes
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/admin/regulations/upload` | Metadata + file form |
+| POST | `/admin/regulations/upload` | Accept upload, create job |
+| GET | `/admin/ingestion-jobs/{id}` | Job status detail |
+| POST | `/admin/ingestion-jobs/{id}/retry` | Retry failed job |
+| GET | `/admin/regulations` | Regulation list |
+| GET | `/admin/regulations/{id}` | Source viewer with metadata + chunk anchors |
+
+### Metadata
+
+**Required:** `title`, `regulator` (SEC|CFTC|EUR_LEX), `jurisdiction` (US|EU), `document_type`, `source_url`, `license_note`, `language=en`, `file`.
+
+**Optional:** `publication_date`, `effective_date`.
+
+**Validation:**
+- `SEC`/`CFTC` → `US`, `EUR_LEX` → `EU`.
+- TXT/MD only (Slice 2).
+- Max 50MB.
+- English only.
+
+### Checksum / Deterministic IDs
+
+- SHA-256 hash computed from original file bytes during streaming upload.
+- Dedup: if hash exists, reject before creating regulation/job (no short-lived rejected job).
+- Chunk ID: `{document_hash}:{section_id}:{chunk_index}`.
+
+### Not In Slice 2
+
+PDF/HTML extraction, Pinecone, hybrid search/RRF, analyst search UI, Q&A, assessments, batch upload.
+
+- [ ] `require_admin` guard in `src/regai/auth/guards.py`
+- [ ] `src/regai/ingestion/` package (extractors, normalizer, chunker, indexer, worker)
+- [ ] `src/regai/routes/admin.py` — all 6 routes
+- [ ] templates: `admin/upload.html`, `admin/job_detail.html`, `admin/regulations.html`, `admin/regulation_detail.html`
+- [ ] register admin router + worker startup in `main.py`
+- [ ] No new migration needed — `001_initial.sql` already has `regulations`, `regulation_chunks`, `chunks_fts`, `ingestion_jobs`
 
 **Tests:**
-- [ ] upload creates ingestion_job with pending status
-- [ ] duplicate hash blocked
-- [ ] chunk IDs deterministic from hash + section_id + index
-- [ ] FTS returns results for indexed text
-- [ ] source viewer shows metadata + text + anchors
+- [ ] Non-admin cannot access upload.
+- [ ] Upload form loads for admin.
+- [ ] Upload rejects unsupported extension.
+- [ ] Upload rejects regulator/jurisdiction mismatch.
+- [ ] Upload rejects duplicate SHA-256 and links existing regulation.
+- [ ] Upload creates `regulations` + `ingestion_jobs`.
+- [ ] Worker extracts TXT/MD and writes extracted + normalized files.
+- [ ] Chunk IDs deterministic: `{hash}:{section_id}:{index}`.
+- [ ] Chunk target/hard max respected for normal text.
+- [ ] FTS returns expected chunk for indexed term.
+- [ ] Failed extraction marks job/regulation failed.
+- [ ] Source viewer shows metadata + chunk anchors.
+- [ ] Retry failed job works.
 
 ## Slice 3: Search Quality
 

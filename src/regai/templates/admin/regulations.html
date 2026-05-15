@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Regulations — RegAI Copilot{% endblock %}
+{% block content %}
+<h1>Regulations</h1>
+<p><a href="/admin/regulations/upload" class="btn btn-primary">Upload</a></p>
+<table>
+    <thead>
+        <tr><th>Title</th><th>Regulator</th><th>Jurisdiction</th><th>Type</th><th>Status</th><th>Created</th></tr>
+    </thead>
+    <tbody>
+    {% for r in regulations %}
+        <tr>
+            <td><a href="/admin/regulations/{{ r.id }}">{{ r.title }}</a></td>
+            <td>{{ r.regulator }}</td>
+            <td>{{ r.jurisdiction }}</td>
+            <td>{{ r.document_type }}</td>
+            <td>{{ r.index_status }}</td>
+            <td>{{ r.created_at }}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

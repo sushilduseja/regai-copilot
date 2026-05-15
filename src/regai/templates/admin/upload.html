@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Upload Regulation — RegAI Copilot{% endblock %}
+{% block content %}
+<h1>Upload Regulation</h1>
+<form method="post" enctype="multipart/form-data" id="upload-form">
+    <div style="margin-bottom:1rem;">
+        <label>Title <input type="text" name="title" required style="width:100%;"></label>
+    </div>
+    <div style="margin-bottom:1rem;display:flex;gap:1rem;">
+        <label>Regulator
+            <select name="regulator" required>
+                <option value="">--</option>
+                <option value="SEC">SEC</option>
+                <option value="CFTC">CFTC</option>
+                <option value="EUR_LEX">EUR-Lex</option>
+            </select>
+        </label>
+        <label>Jurisdiction
+            <select name="jurisdiction" required>
+                <option value="">--</option>
+                <option value="US">US</option>
+                <option value="EU">EU</option>
+            </select>
+        </label>
+        <label>Document Type <input type="text" name="document_type" required></label>
+    </div>
+    <div style="margin-bottom:1rem;display:flex;gap:1rem;">
+        <label>Source URL <input type="url" name="source_url" required style="width:300px;"></label>
+        <label>License Note <input type="text" name="license_note" required></label>
+    </div>
+    <div style="margin-bottom:1rem;display:flex;gap:1rem;">
+        <label>Language <input type="text" name="language" value="en" readonly></label>
+        <label>Publication Date <input type="date" name="publication_date"></label>
+        <label>Effective Date <input type="date" name="effective_date"></label>
+    </div>
+    <div style="margin-bottom:1rem;">
+        <label>File (.txt, .md) <input type="file" name="file" accept=".txt,.md,.markdown" required></label>
+    </div>
+    <button type="submit" class="btn btn-primary">Upload</button>
+</form>
+<script>
+document.getElementById('upload-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    var csrf = '{{ csrf_token }}';
+    if (!csrf) return;
+    var formData = new FormData(this);
+    fetch('/admin/regulations/upload', {
+        method: 'POST',
+        headers: {'X-CSRF-Token': csrf},
+        body: formData,
+    }).then(function(r) {
+        if (!r.ok) {
+            return r.text().then(function(text) { throw new Error(text || r.status); });
+        }
+        if (r.redirected) window.location.href = r.url;
+    }).catch(function(err) {
+        alert('Upload failed: ' + err.message);
+    });
+});
+</script>
+{% endblock %}

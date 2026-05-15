@@ -29,9 +29,9 @@ def _verify_workos_user(code: str, settings) -> dict:
     client = _get_workos_client(settings)
     profile = client.user_management.authenticate_with_code(code=code)
     return {
-        "id": profile["user"]["id"],
-        "email": profile["user"]["email"],
-        "name": profile["user"].get("first_name", "") + " " + profile["user"].get("last_name", ""),
+        "id": profile.user.id,
+        "email": profile.user.email,
+        "name": profile.user.first_name + " " + profile.user.last_name,
     }
 
 

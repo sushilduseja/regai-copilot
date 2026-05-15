@@ -14,3 +14,12 @@ def require_auth(request: Request) -> Response | None:
 
     request.state.user = session
     return None
+
+
+def require_admin(request: Request) -> Response | None:
+    guard = require_auth(request)
+    if guard:
+        return guard
+    if request.state.user["role"] != "admin":
+        return RedirectResponse("/app", status_code=303)
+    return None
