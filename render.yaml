@@ -1,0 +1,35 @@
+previews:
+  - name: regai-copilot
+    pr_creation: branches
+
+services:
+  - type: web
+    name: regai-copilot
+    env: python
+    region: oregon
+    plan: standard
+    buildCommand: pip install -e .
+    startCommand: uvicorn regai.main:create_app --factory --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: WORKOS_CLIENT_ID
+        sync: false
+      - key: WORKOS_API_KEY
+        sync: false
+      - key: WORKOS_REDIRECT_URI
+        value: https://regai-copilot.onrender.com/auth/callback
+      - key: PINECONE_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: DATA_DIR
+        value: /data
+      - key: DATABASE_URL
+        value: sqlite:////data/regai.db
+    disk:
+      name: regai-data
+      mountPath: /data
+      sizeGB: 10
