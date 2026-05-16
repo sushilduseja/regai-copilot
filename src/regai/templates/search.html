@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Search - RegAI Copilot{% endblock %}
+{% block content %}
+<h1>Search</h1>
+<form method="get" action="/app">
+    <div style="display:flex;gap:0.5rem;margin-bottom:1rem;">
+        <input type="search" name="q" value="{{ q }}" placeholder="Search regulations..." style="flex:1;padding:0.5rem 0.75rem;border:1px solid #d1d5db;border-radius:0.375rem;font-size:1rem;">
+        <button type="submit" class="btn btn-primary">Search</button>
+    </div>
+
+    <details style="margin-bottom:1rem;font-size:0.875rem;">
+        <summary style="cursor:pointer;color:#6b7280;font-weight:500;">
+            Filters
+            {% if filters.get('jurisdictions') or filters.get('regulator') or filters.get('document_type') or filters.get('date_from') or filters.get('date_to') %}
+            <a href="/app" style="margin-left:0.75rem;font-weight:400;font-size:0.75rem;color:#2563eb;">Clear all</a>
+            {% endif %}
+        </summary>
+        <div style="display:flex;flex-wrap:wrap;gap:1rem;margin-top:0.75rem;padding:0.75rem;background:#f9fafb;border:1px solid #e5e7eb;border-radius:0.375rem;">
+            <div>
+                <label style="display:block;font-size:0.75rem;color:#6b7280;margin-bottom:0.25rem;">Jurisdiction</label>
+                <label style="margin-right:0.75rem;font-size:0.875rem;"><input type="checkbox" name="j" value="US" {% if 'US' in filters.get('jurisdictions', []) %}checked{% endif %}> US</label>
+                <label style="font-size:0.875rem;"><input type="checkbox" name="j" value="EU" {% if 'EU' in filters.get('jurisdictions', []) %}checked{% endif %}> EU</label>
+            </div>
+            <div>
+                <label for="reg" style="display:block;font-size:0.75rem;color:#6b7280;margin-bottom:0.25rem;">Regulator</label>
+                <select name="reg" id="reg" style="padding:0.25rem 0.5rem;border:1px solid #d1d5db;border-radius:0.25rem;">
+                    <option value="">All</option>
+                    <option value="SEC" {% if filters.get('regulator') == 'SEC' %}selected{% endif %}>SEC</option>
+                    <option value="CFTC" {% if filters.get('regulator') == 'CFTC' %}selected{% endif %}>CFTC</option>
+                    <option value="EUR_LEX" {% if filters.get('regulator') == 'EUR_LEX' %}selected{% endif %}>EUR-Lex</option>
+                </select>
+            </div>
+            <div>
+                <label for="dt" style="display:block;font-size:0.75rem;color:#6b7280;margin-bottom:0.25rem;">Document Type</label>
+                <input type="text" name="dt" id="dt" value="{{ filters.get('document_type', '') }}" placeholder="e.g. rule" style="padding:0.25rem 0.5rem;border:1px solid #d1d5db;border-radius:0.25rem;width:120px;">
+            </div>
+            <div>
+                <label style="display:block;font-size:0.75rem;color:#6b7280;margin-bottom:0.25rem;">Publication Date</label>
+                <input type="date" name="date_from" value="{{ filters.get('date_from', '') }}" style="padding:0.25rem 0.5rem;border:1px solid #d1d5db;border-radius:0.25rem;" placeholder="From">
+                <span style="color:#9ca3af;">—</span>
+                <input type="date" name="date_to" value="{{ filters.get('date_to', '') }}" style="padding:0.25rem 0.5rem;border:1px solid #d1d5db;border-radius:0.25rem;" placeholder="To">
+            </div>
+        </div>
+    </details>
+</form>
+
+{% if result.error == "fts_unavailable" %}
+<div class="banner banner-warning">Keyword search is currently unavailable. Showing semantic results only. Some results may be missing.</div>
+{% elif result.error == "vector_unavailable" %}
+<div class="banner banner-warning">Semantic search is currently unavailable. Showing keyword results only.</div>
+{% elif result.error == "search_unavailable" %}
+<div class="banner banner-error">Search service is unavailable. Please try again later.</div>
+{% endif %}
+
+{% if q and result.results %}
+<div style="margin-top:1.5rem;">
+    <p style="color:#6b7280;font-size:0.875rem;margin-bottom:0.75rem;">{{ result.count }} result{% if result.count != 1 %}s{% endif %}</p>
+    {% for r in result.results %}
+    <div class="result-card" style="padding:1rem;background:#fff;border:1px solid #e5e7eb;border-radius:0.375rem;margin-bottom:0.75rem;">
+        <div style="font-weight:600;margin-bottom:0.25rem;">
+            <a href="/app/documents/{{ r.regulation_id }}#chunk-{{ r.chunk_id }}" style="color:#1a1a1a;text-decoration:none;">{{ r.title }}</a>
+        </div>
+        <div style="font-size:0.75rem;color:#6b7280;margin-bottom:0.5rem;">
+            {{ r.jurisdiction }} &middot; {{ r.regulator }}
+            {% if r.document_type %} &middot; {{ r.document_type }}{% endif %}
+            {% if r.publication_date %} &middot; {{ r.publication_date }}{% endif %}
+            {% if r.effective_date %} &middot; Eff: {{ r.effective_date }}{% endif %}
+        </div>
+        <div style="font-size:0.875rem;color:#374151;">{{ r.snippet|safe }}</div>
+        {% if r.section_path %}
+        <div style="font-size:0.75rem;color:#9ca3af;margin-top:0.25rem;">{{ r.section_path }}</div>
+        {% endif %}
+        {% if r.source_url %}
+        <div style="margin-top:0.5rem;">
+            <a href="{{ r.source_url }}" target="_blank" rel="noopener" style="font-size:0.75rem;color:#2563eb;">Source</a>
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% elif q and not result.results and not result.error %}
+<div class="banner banner-info">No results found. Try adjusting your filters or search term.</div>
+{% endif %}
+{% endblock %}

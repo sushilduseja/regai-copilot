@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     pinecone_api_key: str = ""
     pinecone_index_name: str = "regai-mvp"
 
+    nvidia_embedding_model: str = "nvidia/llama-3.2-nv-embedqa-1b-v2"
+
     groq_api_key: str = ""
     nvidia_api_key: str = ""
     default_llm_provider: str = "groq"

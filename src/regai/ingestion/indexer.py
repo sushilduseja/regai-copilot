@@ -1,18 +1,27 @@
 import json
-import uuid
 import traceback
 from pathlib import Path
+from typing import Optional
 from regai.ingestion.extractors import extract_text
 from regai.ingestion.normalizer import normalize
 from regai.ingestion.chunker import chunk_document
 from regai.ingestion.models import Chunk
+from regai.services.vector_index import (
+    VectorIndexService,
+    EmbeddingProvider,
+    ChunkVector,
+)
+from regai.services.audit import AuditService
 
 
-def _log_audit(db, action, actor_user_id, entity_type, entity_id, metadata):
-    db.execute(
-        "INSERT INTO audit_logs (id, actor_user_id, action, entity_type, entity_id, metadata) VALUES (?, ?, ?, ?, ?, ?)",
-        (str(uuid.uuid4()), actor_user_id, action, entity_type, entity_id, json.dumps(metadata or {})),
-    )
+_TRACE_LIMIT = 2000
+
+
+def _truncated_trace() -> str:
+    tb = traceback.format_exc()
+    if len(tb) > _TRACE_LIMIT:
+        tb = tb[:_TRACE_LIMIT] + "..."
+    return tb
 
 
 def index_chunks(db, regulation_id: str, chunks: list[Chunk]):
@@ -36,7 +45,13 @@ def index_chunks(db, regulation_id: str, chunks: list[Chunk]):
         )
 
 
-def process_job(db, job_id: str, data_dir: str):
+def process_job(
+    db,
+    job_id: str,
+    data_dir: str,
+    vector_index: Optional[VectorIndexService] = None,
+    embedding_provider: Optional[EmbeddingProvider] = None,
+):
     job_row = db.execute(
         "SELECT * FROM ingestion_jobs WHERE id = ? AND status = 'pending'",
         (job_id,),
@@ -48,6 +63,7 @@ def process_job(db, job_id: str, data_dir: str):
     file_path = job["file_path"]
     admin_user_id = job["admin_user_id"]
     document_hash = Path(file_path).stem
+    audit = AuditService(db)
 
     db.execute(
         "UPDATE ingestion_jobs SET status = 'processing', started_at = datetime('now') WHERE id = ?",
@@ -63,9 +79,11 @@ def process_job(db, job_id: str, data_dir: str):
 
     try:
         reg_row = db.execute(
-            "SELECT title FROM regulations WHERE id = ?", (regulation_id,),
+            "SELECT title, jurisdiction, regulator, document_type, publication_date, effective_date FROM regulations WHERE id = ?",
+            (regulation_id,),
         ).fetchone()
         reg_title = reg_row["title"] if reg_row else ""
+        reg_meta = dict(reg_row) if reg_row else {}
 
         raw_text = extract_text(file_path)
         extracted_path = extracted_dir / f"{document_hash}.txt"
@@ -117,13 +135,61 @@ def process_job(db, job_id: str, data_dir: str):
                 "UPDATE ingestion_jobs SET status = 'indexed', completed_at = datetime('now') WHERE id = ?",
                 (job_id,),
             )
-            _log_audit(
-                db, action="ingestion.completed",
+            audit.log(
+                action="ingestion.completed",
                 actor_user_id=admin_user_id,
                 entity_type="regulation",
                 entity_id=regulation_id,
                 metadata={"job_id": job_id, "chunk_count": len(chunks)},
             )
+
+        db.commit()
+
+        if vector_index is not None and embedding_provider is not None:
+            try:
+                texts = [c.text for c in chunks]
+                embeddings = embedding_provider.embed_texts(texts)
+                vector_chunks = []
+                for i, chunk in enumerate(chunks):
+                    vector_chunks.append(ChunkVector(
+                        id=chunk.id,
+                        values=embeddings[i],
+                        metadata={
+                            "chunk_id": chunk.id,
+                            "regulation_id": regulation_id,
+                            "jurisdiction": reg_meta.get("jurisdiction", ""),
+                            "regulator": reg_meta.get("regulator", ""),
+                            "document_type": reg_meta.get("document_type", ""),
+                            "publication_date": reg_meta.get("publication_date", "") or "",
+                            "effective_date": reg_meta.get("effective_date", "") or "",
+                        },
+                    ))
+                vector_index.upsert_chunks(vector_chunks)
+                db.execute(
+                    "UPDATE regulations SET index_status = 'indexed' WHERE id = ?",
+                    (regulation_id,),
+                )
+                audit.log(
+                    action="vector_index.completed",
+                    actor_user_id=admin_user_id,
+                    entity_type="regulation",
+                    entity_id=regulation_id,
+                    metadata={"job_id": job_id, "chunk_count": len(chunks)},
+                )
+                db.commit()
+            except Exception:
+                db.execute(
+                    "UPDATE regulations SET index_status = 'stale' WHERE id = ? AND index_status = 'indexed'",
+                    (regulation_id,),
+                )
+                audit.log(
+                    action="vector_index.failed",
+                    actor_user_id=admin_user_id,
+                    entity_type="regulation",
+                    entity_id=regulation_id,
+                    metadata={"job_id": job_id, "error": _truncated_trace()},
+                )
+                db.commit()
     except Exception:
         try:
             db.execute(
@@ -132,14 +198,14 @@ def process_job(db, job_id: str, data_dir: str):
             )
             db.execute(
                 "UPDATE ingestion_jobs SET status = 'failed', completed_at = datetime('now'), error_message = ? WHERE id = ?",
-                (traceback.format_exc(), job_id),
+                (_truncated_trace(), job_id),
             )
-            _log_audit(
-                db, action="ingestion.failed",
+            audit.log(
+                action="ingestion.failed",
                 actor_user_id=admin_user_id,
                 entity_type="regulation",
                 entity_id=regulation_id,
-                metadata={"job_id": job_id, "error": traceback.format_exc()},
+                metadata={"job_id": job_id, "error": _truncated_trace()},
             )
             db.commit()
         except Exception:

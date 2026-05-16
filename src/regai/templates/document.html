@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}{{ regulation.title }} — RegAI Copilot{% endblock %}
+{% block content %}
+<h1>{{ regulation.title }}</h1>
+<table>
+    <tr><th>Regulator</th><td>{{ regulation.regulator }}</td></tr>
+    <tr><th>Jurisdiction</th><td>{{ regulation.jurisdiction }}</td></tr>
+    <tr><th>Document Type</th><td>{{ regulation.document_type }}</td></tr>
+    {% if regulation.publication_date %}<tr><th>Publication Date</th><td>{{ regulation.publication_date }}</td></tr>{% endif %}
+    {% if regulation.effective_date %}<tr><th>Effective Date</th><td>{{ regulation.effective_date }}</td></tr>{% endif %}
+    {% if regulation.source_url %}<tr><th>Source URL</th><td><a href="{{ regulation.source_url }}">{{ regulation.source_url }}</a></td></tr>{% endif %}
+</table>
+
+<h2 style="margin-top:2rem;">Chunks ({{ chunks|length }})</h2>
+{% for c in chunks %}
+<div style="border:1px solid #e5e7eb;border-radius:0.375rem;padding:1rem;margin-bottom:1rem;">
+    <a name="chunk-{{ c.id }}"></a>
+    <p style="font-size:0.75rem;color:#6b7280;">
+        Chunk {{ c.chunk_index }} &middot; {{ c.token_count }} tokens &middot;
+        Section {{ c.section_id }}{% if c.section_path %}: {{ c.section_path }}{% endif %}
+    </p>
+    {% if c.heading %}<h3>{{ c.heading }}</h3>{% endif %}
+    <pre style="white-space:pre-wrap;font-size:0.875rem;">{{ c.text }}</pre>
+</div>
+{% endfor %}
+<p><a href="/app">&laquo; Back to search</a></p>
+{% endblock %}

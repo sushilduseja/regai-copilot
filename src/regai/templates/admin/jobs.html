@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Jobs — RegAI Copilot{% endblock %}
+{% block content %}
+<h1>Ingestion Jobs</h1>
+<table>
+    <thead>
+        <tr><th>Filename</th><th>Status</th><th>Regulation</th><th>Regulation Status</th><th>Created</th></tr>
+    </thead>
+    <tbody>
+    {% for j in jobs %}
+        <tr>
+            <td><a href="/admin/ingestion-jobs/{{ j.id }}">{{ j.filename }}</a></td>
+            <td>{{ j.status }}</td>
+            <td>{% if j.regulation_id %}<a href="/admin/regulations/{{ j.regulation_id }}">{{ j.regulation_title }}</a>{% else %}&mdash;{% endif %}</td>
+            <td>{{ j.regulation_status or '&mdash;' }}</td>
+            <td>{{ j.created_at }}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+<p style="margin-top:1rem;"><a href="/admin/regulations">Back to regulations</a></p>
+{% endblock %}

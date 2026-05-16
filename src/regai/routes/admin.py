@@ -169,6 +169,23 @@ async def upload_submit(
     return RedirectResponse(f"/admin/ingestion-jobs/{job_id}", status_code=303)
 
 
+@router.get("/jobs")
+def job_list(request: Request):
+    guard = require_admin(request)
+    if guard:
+        return guard
+    db = request.app.state.db
+    rows = db.execute(
+        """SELECT j.*, r.title AS regulation_title, r.index_status AS regulation_status
+           FROM ingestion_jobs j
+           LEFT JOIN regulations r ON r.id = j.regulation_id
+           ORDER BY j.created_at DESC"""
+    ).fetchall()
+    return templates.TemplateResponse(request, "admin/jobs.html", {
+        "user": request.state.user, "jobs": [dict(r) for r in rows],
+    })
+
+
 @router.get("/ingestion-jobs/{job_id}")
 def job_detail(request: Request, job_id: str):
     guard = require_admin(request)
