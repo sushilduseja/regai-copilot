@@ -1,34 +1,22 @@
 import uuid
 import secrets
-import shutil
 import pytest
-from pathlib import Path
 from fastapi.testclient import TestClient
 from regai.main import create_app
 from regai.db import Database, run_migrations
 from regai.auth.session import create_session
-
-@pytest.fixture(scope="session")
-def session_tmp_path(tmp_path_factory):
-    return tmp_path_factory.mktemp("session_data")
-
-@pytest.fixture(scope="session")
-def base_db(session_tmp_path):
-    """Create a base database with migrations applied once per session."""
-    db_path = session_tmp_path / "base_test.db"
-    db = Database(f"sqlite:///{db_path}")
-    run_migrations(db)
-    db.close()
-    return db_path
+from regai.services.vector_index import FakeVectorIndexService, FakeEmbeddingProvider
 
 @pytest.fixture
-def test_app(base_db, tmp_path):
-    """Provide a fresh app with a clean database for every test by copying the base DB."""
+def test_app(tmp_path):
     db_path = tmp_path / "test.db"
-    shutil.copy(base_db, db_path)
-    
     db = Database(f"sqlite:///{db_path}")
-    app = create_app(db=db)
+    run_migrations(db)
+    app = create_app(
+        db=db,
+        vector_index=FakeVectorIndexService(),
+        embedding_provider=FakeEmbeddingProvider(),
+    )
     app.state.settings.data_dir = str(tmp_path / "data")
     yield app
     db.close()

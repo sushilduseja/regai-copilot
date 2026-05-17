@@ -42,7 +42,7 @@ Expected output: **92 tests passing** across 10 test files.
 ## What Each Test File Covers
 
 | File | Tests | What It Verifies |
-|---|---|---|---|
+|---|---|---|
 | `test_health.py` | 1 | `GET /health` returns 200 |
 | `test_config.py` | 4 | Dev defaults, env overrides, prod validation, short secret key |
 | `test_db.py` | 3 | Migration idempotency, checksum enforcement, WAL + fk pragmas |
