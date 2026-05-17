@@ -95,6 +95,7 @@ def create_app(db=None) -> FastAPI:
             filters["date_to"] = date_to
 
         result = {"results": [], "error": None, "count": 0}
+        user_id = request.state.user["user_id"]
         if q:
             try:
                 svc = SearchService(request.app.state.db)
@@ -109,6 +110,13 @@ def create_app(db=None) -> FastAPI:
                     result = svc.search(request.state.user["user_id"], q, filters=filters)
             except Exception:
                 logging.getLogger("regai").exception("Search failed")
+                result = {"results": [], "error": "search_unavailable", "count": 0}
+        elif filters:
+            try:
+                svc = SearchService(request.app.state.db)
+                result = svc.browse(request.state.user["user_id"], filters=filters)
+            except Exception:
+                logging.getLogger("regai").exception("Browse failed")
                 result = {"results": [], "error": "search_unavailable", "count": 0}
 
         try:

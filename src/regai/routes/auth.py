@@ -126,6 +126,24 @@ def callback(request: Request, code: str = None, state: str = None):
 
         db.commit()
 
+    if not is_new:
+        existing_jurs = db.execute(
+            "SELECT jurisdiction FROM user_jurisdictions WHERE user_id = ?",
+            (user_id,),
+        ).fetchall()
+        if not existing_jurs:
+            db.execute(
+                "INSERT INTO user_jurisdictions (user_id, jurisdiction) VALUES (?, 'US')",
+                (user_id,),
+            )
+            db.commit()
+            audit.log(
+                action="user.jurisdiction_auto_granted",
+                actor_user_id=user_id,
+                entity_type="user", entity_id=user_id,
+                metadata={"jurisdiction": "US", "reason": "no_existing_grants"},
+            )
+    else:
         if role == "admin" and user_count == 0:
             audit.log(
                 action="auth.bootstrap_admin_created",

@@ -10,6 +10,8 @@ from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from regai.auth.guards import require_admin
 from regai.services.audit import AuditService
+from regai.services.llm import CompletionService, NVIDIACompletionProvider
+
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 templates = Jinja2Templates(directory=Path(__file__).resolve().parent.parent / "templates")
@@ -47,6 +49,52 @@ def _check_csrf(request: Request):
     header = request.headers.get(CSRF_HEADER)
     if not cookie or not header or cookie != header:
         raise HTTPException(403, "CSRF validation failed")
+
+
+@router.post("/regulations/suggest")
+async def suggest_metadata(
+    request: Request,
+    file: UploadFile = File(...),
+):
+    guard = require_admin(request)
+    if guard:
+        return guard
+    _check_csrf(request)
+
+    settings = request.app.state.settings
+
+    if not settings.nvidia_api_key:
+        raise HTTPException(503, "Metadata suggestion unavailable: NVIDIA API key not configured")
+
+    # Read up to 40KB of the file (enough to capture headers/metadata)
+    content = await file.read(40000)
+    text = content.decode("utf-8", errors="ignore")
+
+    try:
+        provider = NVIDIACompletionProvider(
+            api_key=settings.nvidia_api_key,
+            model="meta/llama-3.1-8b-instruct"
+        )
+        svc = CompletionService(provider)
+
+        prompt = f"Extract regulatory metadata from the following regulatory document text. Return ONLY a valid JSON object with these exact keys. Never wrap in markdown:\n- title: The full official title (string, required)\n- regulator: One of ['SEC', 'CFTC', 'EUR_LEX'] (string, required)\n- jurisdiction: One of ['US', 'EU'] (string, required)\n- document_type: Type of document (string, required, e.g. 'rule', 'directive', 'regulation', 'guideline')\n- publication_date: Publication date in YYYY-MM-DD format (string, or empty string if not found)\n- effective_date: Effective date in YYYY-MM-DD format (string, or empty string if not found)\n- source_url: Official URL for this document (string, or empty string if not found)\n- license_note: License or copyright notice (string, or empty string if not found)\n\nLook carefully for dates in headers, footers, or metadata sections. Look for URLs in headers or footnotes.\n\nText:\n{text}"
+        system_prompt = "You are a regulatory data extractor. Return only valid JSON."
+
+        suggestion = await svc.complete_async(prompt, system_prompt)
+
+        # Basic cleaning of JSON response (remove markdown blocks if present)
+        suggestion = suggestion.strip()
+        if suggestion.startswith("```json"):
+            suggestion = suggestion[7:].rstrip("```").strip()
+        elif suggestion.startswith("```"):
+            suggestion = suggestion[3:].rstrip("```").strip()
+
+        import json
+        return json.loads(suggestion)
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(503, "Metadata suggestion temporarily unavailable")
 
 
 @router.get("/regulations/upload")
@@ -162,9 +210,7 @@ async def upload_submit(
             os.unlink(tmp.name)
         raise
 
-    worker = getattr(request.app.state, "worker", None)
-    if worker:
-        worker.enqueue(job_id)
+    # Worker polls DB for pending jobs automatically, no need to enqueue
 
     return RedirectResponse(f"/admin/ingestion-jobs/{job_id}", status_code=303)
 
@@ -231,9 +277,7 @@ def retry_job(request: Request, job_id: str):
         (job["regulation_id"],),
     )
     db.commit()
-    worker = getattr(request.app.state, "worker", None)
-    if worker:
-        worker.enqueue(job_id)
+    # Worker polls DB for pending jobs automatically, no need to enqueue
     return RedirectResponse(f"/admin/ingestion-jobs/{job_id}", status_code=303)
 
 

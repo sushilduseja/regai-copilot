@@ -52,7 +52,7 @@
 <div class="banner banner-error">Search service is unavailable. Please try again later.</div>
 {% endif %}
 
-{% if q and result.results %}
+{% if result.results %}
 <div style="margin-top:1.5rem;">
     <p style="color:#6b7280;font-size:0.875rem;margin-bottom:0.75rem;">{{ result.count }} result{% if result.count != 1 %}s{% endif %}</p>
     {% for r in result.results %}
@@ -78,7 +78,7 @@
     </div>
     {% endfor %}
 </div>
-{% elif q and not result.results and not result.error %}
+{% elif (q or filters) and not result.results and not result.error %}
 <div class="banner banner-info">No results found. Try adjusting your filters or search term.</div>
 {% endif %}
 {% endblock %}

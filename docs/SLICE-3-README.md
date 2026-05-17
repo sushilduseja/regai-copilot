@@ -16,7 +16,7 @@ The search layer for RegAI Copilot: keyword (FTS5), semantic (Pinecone), and hyb
 | **Semantic Search** | `SearchService.semantic_search()` — vector index query → SQLite metadata fetch. Jurisdiction enforced in SQLite. `vector_unavailable` error on failure |
 | **RRF Fusion** | `SearchService.hybrid_search()` — FTS top 50 + semantic top 50 merged at chunk level with `k=60`. Chunks in both lists rank above singles. Metadata re-fetched from SQLite after fusion |
 | **Graceful Degradation** | 3 paths: vector down → FTS + `vector_unavailable` banner; FTS down → semantic + `fts_unavailable` banner; both down → `search_unavailable` error |
-| **Embedding** | `FakeEmbeddingProvider` (SHA-256 seeded LCG, deterministic, unit-norm) for dev. `NVIDIAEmbeddingProvider` (NIM API) for production |
+| **Embedding** | `FakeEmbeddingProvider` (SHA-256 seeded LCG, deterministic, unit-norm) for dev. `NVIDIAEmbeddingProvider` (`nvidia/llama-3.2-nv-embedqa-1b-v2`) for production |
 | **Route Wiring** | `GET /app` falls back to FTS-only if no vector index configured; uses `hybrid_search` when Pinecone + embedding provider are available |
 
 ## Prerequisites
@@ -37,7 +37,7 @@ pip install -e ".[pinecone]"
 python -m pytest tests/ -v
 ```
 
-Expected output: **96 tests passing** across 10 test files.
+Expected output: **92 tests passing** across 10 test files.
 
 ## What Each Test File Covers
 
@@ -68,12 +68,13 @@ echo "WORKOS_API_KEY=dummy" >> .env
 # echo "NVIDIA_API_KEY=..." >> .env     # optional
 
 # 3. Start the app (worker starts automatically)
-uvicorn regai.main:create_app --factory --reload
+uvicorn run:app --reload
 ```
 
 With the app running:
 
 - `GET /app` — search page (redirects to login if unauthenticated)
+- `GET /app?q=&j=US` — browse by jurisdiction (no query)
 - `GET /app?q=insider` — keyword search with result cards
 - `GET /app?q=insider&j=US&reg=SEC` — filtered search
 - `GET /app/documents/{id}` — document viewer with chunk anchors
@@ -90,6 +91,7 @@ To test with hybrid search (requires Pinecone + NVIDIA):
 ```
 src/regai/
 ├── main.py                         # Route wiring: FTS-only or hybrid_search
+├── run.py                          # Production entry point (exposes app instance)
 ├── routes/
 │   └── app.py                      # GET /app/documents/{regulation_id} (deep links)
 ├── services/

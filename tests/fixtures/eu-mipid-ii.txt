@@ -1,0 +1,18 @@
+Directive 2014/65/EU of the European Parliament and of the Council of 15 May 2014 on markets in financial instruments and amending Directive 2002/92/EC and Directive 2011/61/EU
+
+Official Journal of the European Union: L 173/349
+Publication Date: 2014-06-12
+Effective Date: 2014-07-02
+Regulator: EUR_LEX
+Jurisdiction: EU
+Source URL: https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=celex:32014L0065
+License: © European Union, 2014. Reproduction is authorized provided the source is acknowledged.
+
+Section 1: Scope
+This directive establishes a common regulatory framework for markets in financial instruments across the European Union. It aims to increase transparency and protect investors.
+
+Section 2: High Frequency Trading
+HFT firms must be authorized and subject to strict algorithmic trading controls. They must maintain detailed logs of all orders and trades for five years.
+
+Section 3: Transparency Requirements
+Pre-trade and post-trade transparency obligations apply to equity and non-equity instruments to ensure a fair and orderly market.

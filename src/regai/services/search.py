@@ -113,6 +113,86 @@ class SearchService:
             results.append(d)
         return {"results": results, "error": None, "count": len(results)}
 
+    def browse(
+        self,
+        user_id: str,
+        filters: Optional[dict] = None,
+        limit: int = 50,
+    ) -> dict:
+        filters = dict(filters) if filters else {}
+
+        user_jurisdictions = self.db.execute(
+            "SELECT jurisdiction FROM user_jurisdictions WHERE user_id = ?",
+            (user_id,),
+        ).fetchall()
+        allowed = {r["jurisdiction"] for r in user_jurisdictions}
+
+        requested = filters.get("jurisdictions")
+        if requested:
+            jurisdictions = sorted(set(requested) & allowed)
+        else:
+            jurisdictions = sorted(allowed)
+
+        if not jurisdictions:
+            return {"results": [], "error": None, "count": 0}
+
+        clauses = []
+        params: list = []
+
+        jur_placeholders = ",".join("?" for _ in jurisdictions)
+        clauses.append(f"r.jurisdiction IN ({jur_placeholders})")
+        params.extend(jurisdictions)
+
+        if filters.get("regulator"):
+            clauses.append("r.regulator = ?")
+            params.append(filters["regulator"])
+
+        if filters.get("document_type"):
+            clauses.append("r.document_type = ?")
+            params.append(filters["document_type"])
+
+        if filters.get("date_from"):
+            clauses.append("r.publication_date >= ?")
+            params.append(filters["date_from"])
+
+        if filters.get("date_to"):
+            clauses.append("r.publication_date <= ?")
+            params.append(filters["date_to"])
+
+        where = " AND ".join(clauses)
+        sql = f"""
+            SELECT c.id AS chunk_id,
+                   c.text,
+                   c.heading, c.section_path, c.chunk_index,
+                   r.id AS regulation_id, r.title, r.jurisdiction, r.regulator,
+                   r.document_type, r.publication_date, r.effective_date, r.source_url
+            FROM regulation_chunks c
+            JOIN regulations r ON c.regulation_id = r.id
+            WHERE {where}
+            ORDER BY r.title, c.chunk_index
+            LIMIT ?
+        """
+        params.append(limit)
+
+        rows = self.db.execute(sql, params).fetchall()
+
+        # Limit to max 10 chunks per regulation to ensure diversity
+        regulation_chunks: dict[str, list] = {}
+        for r in rows:
+            reg_id = r["regulation_id"]
+            if reg_id not in regulation_chunks:
+                regulation_chunks[reg_id] = []
+            if len(regulation_chunks[reg_id]) < 10:
+                regulation_chunks[reg_id].append(r)
+
+        results = []
+        for chunks in regulation_chunks.values():
+            for d in chunks:
+                dd = dict(d)
+                dd["snippet"] = html.escape(dd["text"][:200])
+                results.append(dd)
+        return {"results": results[:limit], "error": None, "count": len(results[:limit])}
+
     def semantic_search(
         self,
         user_id: str,

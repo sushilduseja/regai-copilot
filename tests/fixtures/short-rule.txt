@@ -1,0 +1,10 @@
+SEC Rule 83: Risk Disclosure Requirements for Annual Reports
+
+Regulator: Securities and Exchange Commission (SEC)
+Jurisdiction: United States
+Publication Date: 2005-06-15
+Effective Date: 2005-09-01
+Source URL: https://www.sec.gov/rules/final/33-8618.htm
+License: Public Domain
+
+All issuers must disclose material risks in their annual reports. Failure to do so results in immediate audit requirements and potential enforcement action under Section 13(a) of the Securities Exchange Act of 1934.

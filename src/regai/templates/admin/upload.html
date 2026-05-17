@@ -4,11 +4,11 @@
 <h1>Upload Regulation</h1>
 <form method="post" enctype="multipart/form-data" id="upload-form">
     <div style="margin-bottom:1rem;">
-        <label>Title <input type="text" name="title" required style="width:100%;"></label>
+        <label>Title <input type="text" name="title" id="field-title" required style="width:100%;"></label>
     </div>
     <div style="margin-bottom:1rem;display:flex;gap:1rem;">
         <label>Regulator
-            <select name="regulator" required>
+            <select name="regulator" id="field-regulator" required>
                 <option value="">--</option>
                 <option value="SEC">SEC</option>
                 <option value="CFTC">CFTC</option>
@@ -16,29 +16,94 @@
             </select>
         </label>
         <label>Jurisdiction
-            <select name="jurisdiction" required>
+            <select name="jurisdiction" id="field-jurisdiction" required>
                 <option value="">--</option>
                 <option value="US">US</option>
                 <option value="EU">EU</option>
             </select>
         </label>
-        <label>Document Type <input type="text" name="document_type" required></label>
+        <label>Document Type <input type="text" name="document_type" id="field-document_type" required></label>
     </div>
     <div style="margin-bottom:1rem;display:flex;gap:1rem;">
-        <label>Source URL <input type="url" name="source_url" required style="width:300px;"></label>
-        <label>License Note <input type="text" name="license_note" required></label>
+        <label>Source URL <input type="url" name="source_url" id="field-source_url" required style="width:300px;"></label>
+        <label>License Note <input type="text" name="license_note" id="field-license_note" required></label>
     </div>
     <div style="margin-bottom:1rem;display:flex;gap:1rem;">
-        <label>Language <input type="text" name="language" value="en" readonly></label>
-        <label>Publication Date <input type="date" name="publication_date"></label>
-        <label>Effective Date <input type="date" name="effective_date"></label>
+        <label>Language <input type="text" name="language" id="field-language" value="en" readonly></label>
+        <label>Publication Date <input type="date" name="publication_date" id="field-publication_date"></label>
+        <label>Effective Date <input type="date" name="effective_date" id="field-effective_date"></label>
     </div>
     <div style="margin-bottom:1rem;">
-        <label>File (.txt, .md) <input type="file" name="file" accept=".txt,.md,.markdown" required></label>
+        <label>File (.txt, .md) <input type="file" name="file" id="file-input" accept=".txt,.md,.markdown" required onchange="suggestMetadata(this)"></label>
     </div>
     <button type="submit" class="btn btn-primary">Upload</button>
 </form>
 <script>
+async function suggestMetadata(input) {
+    if (!input.files || input.files.length === 0) return;
+    
+    const file = input.files[0];
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const btn = document.querySelector('button[type="submit"]');
+    const originalText = btn.innerText;
+    btn.innerText = "Suggesting...";
+    btn.disabled = true;
+    
+    try {
+        // Get CSRF token from cookie
+        const csrfCookie = document.cookie.split('; ').find(row => row.startsWith('regai_csrf='));
+        const csrfToken = csrfCookie ? csrfCookie.split('=')[1] : '';
+        
+        const resp = await fetch('/admin/regulations/suggest', {
+            method: 'POST',
+            headers: csrfToken ? {'X-CSRF-Token': csrfToken} : {},
+            body: formData,
+        });
+        if (!resp.ok) throw new Error(`Suggestion failed: ${resp.status}`);
+        
+        const data = await resp.json();
+        console.log('LLM returned:', JSON.stringify(data, null, 2));
+        
+        const setVal = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) {
+                // Handle null string from LLM, undefined, null
+                el.value = (val === null || val === undefined || val === 'null' || val === 'undefined') ? '' : val;
+                console.log(`Set #${id} to:`, el.value);
+            } else {
+                console.warn(`Element #${id} not found`);
+            }
+        };
+
+        let reg = data.regulator || "";
+        if (reg.toUpperCase() === "EU" || reg.toLowerCase().includes("european union") || reg.toUpperCase() === "EUR_LEX") {
+            reg = "EUR_LEX";
+        } else if (reg.toUpperCase() === "SEC" || reg.toLowerCase().includes("securities and exchange")) {
+            reg = "SEC";
+        } else if (reg.toUpperCase() === "CFTC" || reg.toLowerCase().includes("commodity futures")) {
+            reg = "CFTC";
+        }
+
+        setVal('field-title', data.title);
+        setVal('field-regulator', reg);
+        setVal('field-jurisdiction', data.jurisdiction);
+        setVal('field-document_type', data.document_type);
+        setVal('field-publication_date', data.publication_date);
+        setVal('field-effective_date', data.effective_date);
+        setVal('field-source_url', data.source_url);
+        setVal('field-license_note', data.license_note);
+        
+    } catch (err) {
+        console.error('Suggestion error:', err);
+        alert('Could not auto-populate metadata: ' + err.message);
+    } finally {
+        btn.innerText = originalText;
+        btn.disabled = false;
+    }
+}
+
 document.getElementById('upload-form').addEventListener('submit', function(e) {
     e.preventDefault();
     var csrf = '{{ csrf_token }}';

@@ -1,0 +1,17 @@
+CFTC Regulation Part 45: Swap Data Recordkeeping and Reporting Requirements
+
+Regulator: Commodity Futures Trading Commission (CFTC)
+Jurisdiction: United States
+Publication Date: 2012-01-13
+Effective Date: 2012-03-13
+Source URL: https://www.cftc.gov/LawRegulation/FederalRegister/2012/01/13/77-FR-2136
+License: Public Domain - Works of the U.S. Government not subject to copyright
+
+Section 1: Applicability
+This rule applies to all swap dealers and major swap participants operating in US markets.
+
+Section 2: Daily Reporting
+Reporting entities must submit daily transaction reports by 10:00 AM Eastern Time. Reports must include the unique swap identifier (USI) and counterparty details.
+
+Section 3: Recordkeeping
+All reports and supporting documentation must be stored in an immutable format for seven years.

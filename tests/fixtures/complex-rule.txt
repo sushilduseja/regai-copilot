@@ -1,0 +1,38 @@
+Enterprise Risk Management Framework: Global Standard
+
+Regulator: EUR_LEX
+Jurisdiction: EU
+Publication Date: 2018-10-01
+Effective Date: 2019-01-01
+Source URL: https://www.iso.org/standard/65694.html
+License: ISO Copyright - Reproduced with permission
+
+Section 1: Governance
+The board of directors is responsible for the overall risk appetite statement. A Chief Risk Officer (CRO) must be appointed to oversee the risk management function.
+
+Section 2: Risk Identification
+Risks shall be identified through quarterly assessments across all business units. Risks are categorized as Operational, Credit, Market, or Liquidity.
+
+Section 3: Mitigation Strategies
+Mitigation strategies must be documented and reviewed annually. Strategies include insurance, hedging, or risk avoidance.
+
+Section 4: Monitoring and Reporting
+The CRO shall provide a monthly risk report to the board. Reports must highlight breaches of risk limits.
+
+Section 5: Audit and Review
+Internal audit shall review the risk framework every two years to ensure alignment with global standards.
+
+Section 6: Compliance and Enforcement
+Non-compliance with risk limits will trigger an immediate review by the compliance committee.
+
+Section 7: Materiality Thresholds
+A risk is deemed material if it exceeds 5% of the total capital reserve.
+
+Section 8: Reporting Timelines
+Material breaches must be reported to the regulator within 48 hours.
+
+Section 9: Documentation
+All risk assessments must be signed by the unit head and the CRO.
+
+Section 10: Training
+Annual risk management training is mandatory for all employees with decision-making authority.
