@@ -14,12 +14,13 @@ from regai.services.search import SearchService
 from regai.services.audit import AuditService
 from regai.services.vector_index import (
     PineconeVectorIndexService,
+    FakeVectorIndexService,
     FakeEmbeddingProvider,
     NVIDIAEmbeddingProvider,
 )
 
 
-def create_app(db=None) -> FastAPI:
+def create_app(db=None, vector_index=None, embedding_provider=None) -> FastAPI:
     settings = Settings()
 
     start_worker = db is None
@@ -27,13 +28,20 @@ def create_app(db=None) -> FastAPI:
         db = Database(settings.database_url)
     run_migrations(db)
 
-    vector_index = None
-    embedding_provider = None
-    if settings.pinecone_api_key:
-        vector_index = PineconeVectorIndexService(
-            api_key=settings.pinecone_api_key,
-            index_name=settings.pinecone_index_name,
-        )
+    if vector_index is None:
+        if settings.pinecone_api_key:
+            try:
+                import pinecone
+                vector_index = PineconeVectorIndexService(
+                    api_key=settings.pinecone_api_key,
+                    index_name=settings.pinecone_index_name,
+                )
+            except ImportError:
+                vector_index = FakeVectorIndexService()
+        else:
+            vector_index = FakeVectorIndexService()
+
+    if embedding_provider is None:
         if settings.nvidia_api_key:
             embedding_provider = NVIDIAEmbeddingProvider(
                 api_key=settings.nvidia_api_key,

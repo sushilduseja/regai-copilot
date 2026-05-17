@@ -1,25 +1,14 @@
 import uuid
 import hashlib
-import secrets
 import pytest
 from fastapi.testclient import TestClient
-from regai.main import create_app
-from regai.db import Database, run_migrations
-from regai.auth.session import create_session
-
-
-@pytest.fixture
-def test_app(tmp_path):
-    db_path = tmp_path / "test.db"
-    db = Database(f"sqlite:///{db_path}")
-    run_migrations(db)
-    app = create_app(db=db)
-    app.state.settings.data_dir = str(tmp_path / "data")
-    yield app
-    db.close()
-
 
 def _admin_headers(test_app):
+    from tests.conftest import admin_headers
+    # Since admin_headers is a fixture, we can't call it easily here.
+    # I'll implement the helper using the same logic as the fixture.
+    import secrets
+    from regai.auth.session import create_session
     db = test_app.state.db
     user_id = str(uuid.uuid4())
     db.execute(
@@ -31,39 +20,6 @@ def _admin_headers(test_app):
     csrf = secrets.token_hex(16)
     db.commit()
     return {"session": session_token, "csrf": csrf, "user_id": user_id}
-
-
-def _analyst_headers(test_app):
-    db = test_app.state.db
-    user_id = str(uuid.uuid4())
-    db.execute(
-        "INSERT INTO users (id, auth_subject, email, name, role) VALUES (?, ?, ?, ?, 'analyst')",
-        (user_id, f"analyst_{user_id}", f"analyst_{user_id}@example.com", "Analyst"),
-    )
-    db.commit()
-    session_token = create_session(db, user_id)
-    csrf = secrets.token_hex(16)
-    db.commit()
-    return {"session": session_token, "csrf": csrf, "user_id": user_id}
-
-
-@pytest.fixture
-def admin_client(test_app):
-    h = _admin_headers(test_app)
-    client = TestClient(test_app, follow_redirects=False)
-    client.cookies.set("regai_session", h["session"])
-    client.cookies.set("regai_csrf", h["csrf"])
-    return client
-
-
-@pytest.fixture
-def analyst_client(test_app):
-    h = _analyst_headers(test_app)
-    client = TestClient(test_app, follow_redirects=False)
-    client.cookies.set("regai_session", h["session"])
-    client.cookies.set("regai_csrf", h["csrf"])
-    return client
-
 
 def _csrf_headers(client):
     csrf = str(client.cookies.get("regai_csrf"))
