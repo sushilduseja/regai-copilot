@@ -323,3 +323,85 @@ def test_upload_rejects_oversized_file(test_app):
     )
     assert resp.status_code == 400
     assert "too large" in resp.text.lower()
+
+
+# --- Metadata suggest tests ---
+
+def test_suggest_requires_csrf(admin_client):
+    resp = admin_client.post(
+        "/admin/regulations/suggest",
+        files={"file": ("test.txt", b"SEC Rule 10b5-1", "text/plain")},
+    )
+    assert resp.status_code == 403
+
+
+def test_suggest_fails_without_nvidia_key(test_app):
+    h = _admin_headers(test_app)
+    client = TestClient(test_app, follow_redirects=False)
+    client.cookies.set("regai_session", h["session"])
+    client.cookies.set("regai_csrf", h["csrf"])
+
+    # Ensure no NVIDIA key
+    test_app.state.settings.nvidia_api_key = ""
+
+    resp = client.post(
+        "/admin/regulations/suggest",
+        headers=_csrf_headers(client),
+        files={"file": ("test.txt", b"SEC Rule 10b5-1", "text/plain")},
+    )
+    assert resp.status_code == 503
+    assert "NVIDIA API key not configured" in resp.text
+
+
+def test_suggest_fails_with_groq_key_only(test_app):
+    h = _admin_headers(test_app)
+    client = TestClient(test_app, follow_redirects=False)
+    client.cookies.set("regai_session", h["session"])
+    client.cookies.set("regai_csrf", h["csrf"])
+
+    # Set Groq key but not NVIDIA
+    test_app.state.settings.nvidia_api_key = ""
+    test_app.state.settings.groq_api_key = "test_groq_key"
+
+    resp = client.post(
+        "/admin/regulations/suggest",
+        headers=_csrf_headers(client),
+        files={"file": ("test.txt", b"SEC Rule 10b5-1", "text/plain")},
+    )
+    assert resp.status_code == 503
+    assert "Groq provider not implemented" in resp.text
+
+
+def test_suggest_returns_metadata_on_success(test_app, monkeypatch):
+    h = _admin_headers(test_app)
+    client = TestClient(test_app, follow_redirects=False)
+    client.cookies.set("regai_session", h["session"])
+    client.cookies.set("regai_csrf", h["csrf"])
+
+    # Set NVIDIA key
+    test_app.state.settings.nvidia_api_key = "test_nvidia_key"
+
+    # Mock httpx response
+    class MockResponse:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"choices": [{"message": {"content": '{"title": "SEC Rule 10b5-1", "regulator": "SEC", "jurisdiction": "US", "document_type": "rule", "publication_date": "2025-01-15", "effective_date": "2025-07-15", "source_url": "https://www.sec.gov/rules/final/34-xxxxx.htm", "license_note": "Public"}'}}]}
+
+    async def mock_post(*args, **kwargs):
+        return MockResponse()
+
+    monkeypatch.setattr("httpx.AsyncClient.post", mock_post)
+
+    resp = client.post(
+        "/admin/regulations/suggest",
+        headers=_csrf_headers(client),
+        files={"file": ("test.txt", b"SEC Rule 10b5-1 insider trading disclosure requirements", "text/plain")},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["title"] == "SEC Rule 10b5-1"
+    assert data["regulator"] == "SEC"
+    assert data["jurisdiction"] == "US"
+    assert data["document_type"] == "rule"

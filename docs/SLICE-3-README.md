@@ -91,9 +91,8 @@ To test with hybrid search (requires Pinecone + NVIDIA):
 ```
 src/regai/
 ├── main.py                         # Route wiring: FTS-only or hybrid_search
-├── run.py                          # Production entry point (exposes app instance)
 ├── routes/
-│   └── app.py                      # GET /app/documents/{regulation_id} (deep links)
+│   └── app.py                      # GET /app (search), GET /app/documents/{regulation_id} (deep links)
 ├── services/
 │   ├── search.py                   # SearchService: search(), semantic_search(), hybrid_search()
 │   └── vector_index.py             # EmbeddingProvider ABC, FakeEmbeddingProvider, NVIDIAEmbeddingProvider

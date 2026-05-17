@@ -21,16 +21,29 @@ class IngestionWorker:
         self._setup_services()
 
     def _setup_services(self):
+        import logging
         if self._settings.pinecone_api_key:
-            self._vector_index = PineconeVectorIndexService(
-                api_key=self._settings.pinecone_api_key,
-                index_name=self._settings.pinecone_index_name,
-            )
-            if self._settings.nvidia_api_key:
+            try:
+                self._vector_index = PineconeVectorIndexService(
+                    api_key=self._settings.pinecone_api_key,
+                    index_name=self._settings.pinecone_index_name,
+                )
+            except Exception as e:
+                logging.getLogger("regai").warning(
+                    f"Pinecone unavailable in worker: {type(e).__name__}: {e}. Running without vector indexing."
+                )
+                self._vector_index = None
+        if self._settings.nvidia_api_key:
+            try:
                 self._embedding_provider = NVIDIAEmbeddingProvider(
                     api_key=self._settings.nvidia_api_key,
                     model=self._settings.nvidia_embedding_model,
                 )
+            except Exception as e:
+                logging.getLogger("regai").warning(
+                    f"NVIDIA embedding provider unavailable: {type(e).__name__}: {e}. Semantic search disabled."
+                )
+                self._embedding_provider = None
 
     def start(self):
         self._recover_stuck_jobs()
@@ -59,11 +72,16 @@ class IngestionWorker:
     def _run(self):
         while not self._stop_event.is_set():
             db = self._get_db()
+            # Atomic claim: UPDATE with subquery ensures only one worker gets the job
             row = db.execute(
-                "SELECT id FROM ingestion_jobs WHERE status = 'pending' ORDER BY created_at LIMIT 1",
+                """UPDATE ingestion_jobs
+                   SET status = 'processing', started_at = datetime('now')
+                   WHERE id = (SELECT id FROM ingestion_jobs WHERE status = 'pending' ORDER BY created_at LIMIT 1)
+                   RETURNING id""",
             ).fetchone()
             if row:
                 job_id = row["id"]
+                db.commit()
                 db.close()
                 worker_db = self._get_db()
                 try:

@@ -160,38 +160,33 @@ class SearchService:
             params.append(filters["date_to"])
 
         where = " AND ".join(clauses)
+        # Push 10-chunk-per-regulation limit into SQL via window function for true diversity
         sql = f"""
-            SELECT c.id AS chunk_id,
-                   c.text,
-                   c.heading, c.section_path, c.chunk_index,
-                   r.id AS regulation_id, r.title, r.jurisdiction, r.regulator,
-                   r.document_type, r.publication_date, r.effective_date, r.source_url
-            FROM regulation_chunks c
-            JOIN regulations r ON c.regulation_id = r.id
-            WHERE {where}
-            ORDER BY r.title, c.chunk_index
+            SELECT * FROM (
+                SELECT c.id AS chunk_id,
+                       c.text,
+                       c.heading, c.section_path, c.chunk_index,
+                       r.id AS regulation_id, r.title, r.jurisdiction, r.regulator,
+                       r.document_type, r.publication_date, r.effective_date, r.source_url,
+                       ROW_NUMBER() OVER (PARTITION BY r.id ORDER BY c.chunk_index) as rn
+                FROM regulation_chunks c
+                JOIN regulations r ON c.regulation_id = r.id
+                WHERE {where}
+            ) sub
+            WHERE rn <= 10
+            ORDER BY r.title, chunk_index
             LIMIT ?
         """
         params.append(limit)
 
         rows = self.db.execute(sql, params).fetchall()
 
-        # Limit to max 10 chunks per regulation to ensure diversity
-        regulation_chunks: dict[str, list] = {}
-        for r in rows:
-            reg_id = r["regulation_id"]
-            if reg_id not in regulation_chunks:
-                regulation_chunks[reg_id] = []
-            if len(regulation_chunks[reg_id]) < 10:
-                regulation_chunks[reg_id].append(r)
-
         results = []
-        for chunks in regulation_chunks.values():
-            for d in chunks:
-                dd = dict(d)
-                dd["snippet"] = html.escape(dd["text"][:200])
-                results.append(dd)
-        return {"results": results[:limit], "error": None, "count": len(results[:limit])}
+        for r in rows:
+            d = dict(r)
+            d["snippet"] = html.escape(d["text"][:200])
+            results.append(d)
+        return {"results": results, "error": None, "count": len(results)}
 
     def semantic_search(
         self,

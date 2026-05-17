@@ -63,7 +63,10 @@ async def suggest_metadata(
 
     settings = request.app.state.settings
 
+    # Metadata suggestion requires NVIDIA API key (Groq not yet supported)
     if not settings.nvidia_api_key:
+        if settings.groq_api_key:
+            raise HTTPException(503, "Metadata suggestion unavailable: Groq provider not implemented. Configure NVIDIA_API_KEY instead.")
         raise HTTPException(503, "Metadata suggestion unavailable: NVIDIA API key not configured")
 
     # Read up to 40KB of the file (enough to capture headers/metadata)
