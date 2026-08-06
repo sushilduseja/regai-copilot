@@ -52,3 +52,4 @@ htmlcov/
 
 # Render
 render.yaml.bak
+requirements.txt
