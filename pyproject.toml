@@ -17,7 +17,7 @@ dependencies = [
 
 [project.optional-dependencies]
 pinecone = [
-    "pinecone>=5.0.0",
+    "pinecone>=5.4.2",
 ]
 
 [tool.pytest.ini_options]
