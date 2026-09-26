@@ -10,7 +10,7 @@ dependencies = [
     "fastapi>=0.141.1",
     "uvicorn[standard]>=0.30.0",
     "pydantic-settings>=2.14.2",
-    "workos>=4.0.0",
+    "workos>=4.16.0",
     "pydantic[email]>=2.13.4",
     "httpx>=0.28.1",
 ]
